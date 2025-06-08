@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>AI Resume Analyzer</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      margin: 0;
+      padding: 0;
+      background: #1e1e2f;
+      color: #fff;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 50px auto;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 16px;
+      padding: 30px;
+      box-shadow: 0 8px 32px 0 rgba(0,0,0,0.37);
+      backdrop-filter: blur(12px);
+    }
+
+    h1 {
+      text-align: center;
+      color: #00e676;
+    }
+
+    label {
+      font-weight: 600;
+      display: block;
+      margin-top: 20px;
+      color: #90caf9;
+    }
+
+    input[type="file"] {
+      width: 100%;
+      padding: 10px;
+      margin-top: 8px;
+      border-radius: 6px;
+      border: 1px solid #555;
+      background: #2c2c3e;
+      color: white;
+    }
+
+    button {
+      margin-top: 25px;
+      padding: 12px 20px;
+      background-color: #00e676;
+      color: black;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      cursor: pointer;
+      transition: background 0.3s ease;
+    }
+
+    button:hover {
+      background-color: #00c853;
+    }
+
+    .results {
+      margin-top: 30px;
+      padding: 20px;
+      background: #2e2e40;
+      border-radius: 10px;
+    }
+
+    .results h2 {
+      color: #00e5ff;
+    }
+
+    .results p {
+      font-size: 15px;
+      margin: 8px 0;
+    }
+
+    .stat-bar {
+      background: #42425a;
+      border-radius: 10px;
+      overflow: hidden;
+      margin-bottom: 10px;
+    }
+
+    .stat-fill {
+      height: 18px;
+      color: black;
+      padding-left: 10px;
+      line-height: 18px;
+      background: #00e676;
+    }
+
+    #chartContainer {
+      margin-top: 30px;
+      display: flex;
+      justify-content: center;
+    }
+
+    #skillsChart {
+      width: 300px !important;
+      height: 300px !important;
+    }
+
+    .highlight {
+      color: #ff5252;
+    }
+
+    .loading {
+      margin-top: 15px;
+      color: #ccc;
+      font-style: italic;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1> AI Resume Analyzer</h1>
+
+    <label>Upload Resume (.txt only)</label>
+    <input type="file" id="resumeFile" />
+
+    <label>Upload Job Description (.txt only)</label>
+    <input type="file" id="jdFile" />
+
+    <button onclick="analyzeResume()">Analyze Resume</button>
+    <div id="error" class="highlight"></div>
+    <div id="loading" class="loading"></div>
+
+    <div class="results" id="results" style="display: none;">
+      <h2> Analysis Results</h2>
+      <p><strong> Matched Skills:</strong> <span id="matchedSkills"></span></p>
+      <p><strong> Missing Required Skills:</strong> <span id="missingSkills"></span></p>
+
+      <p><strong>Skill Match Score:</strong></p>
+      <div class="stat-bar"><div class="stat-fill" id="matchBar" style="width:0%">0%</div></div>
+
+      <p><strong>Final Resume Score:</strong></p>
+      <div class="stat-bar"><div class="stat-fill" id="finalBar" style="width:0%">0/100</div></div>
+
+      <div id="chartContainer">
+        <canvas id="skillsChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const skillSet = ["python", "java", "sql", "html", "css", "javascript", "react", "node", "flask", "nlp", "data analysis", "machine learning"];
+    let chart = null;
+
+    async function readTextFile(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = e => resolve(e.target.result.toLowerCase());
+        reader.onerror = reject;
+        reader.readAsText(file);
+      });
+    }
+
+    async function analyzeResume() {
+      const errorDiv = document.getElementById("error");
+      const loading = document.getElementById("loading");
+      const results = document.getElementById("results");
+
+      errorDiv.textContent = "";
+      results.style.display = "none";
+      loading.textContent = "Analyzing resume...";
+
+      const resumeFile = document.getElementById("resumeFile").files[0];
+      const jdFile = document.getElementById("jdFile").files[0];
+
+      if (!resumeFile || !jdFile) {
+        errorDiv.textContent = "⚠️ Please upload both resume and job description files.";
+        loading.textContent = "";
+        return;
+      }
+
+      const resumeText = await readTextFile(resumeFile);
+      const jdText = await readTextFile(jdFile);
+
+      const matchedSkills = skillSet.filter(skill => resumeText.includes(skill) && jdText.includes(skill));
+      const missingSkills = skillSet.filter(skill => jdText.includes(skill) && !resumeText.includes(skill));
+
+      const matchScore = Math.round((matchedSkills.length / skillSet.length) * 100);
+      const finalScore = Math.min(matchScore + matchedSkills.length * 2, 100);
+
+      document.getElementById("matchedSkills").innerText = matchedSkills.join(", ") || "None";
+      document.getElementById("missingSkills").innerText = missingSkills.join(", ") || "None";
+
+      const matchBar = document.getElementById("matchBar");
+      const finalBar = document.getElementById("finalBar");
+      matchBar.style.width = matchScore + "%";
+      finalBar.style.width = finalScore + "%";
+      matchBar.textContent = matchScore + "%";
+      finalBar.textContent = finalScore + "/100";
+
+      renderChart(matchedSkills.length, skillSet.length - matchedSkills.length);
+      results.style.display = "block";
+      loading.textContent = "";
+    }
+
+    function renderChart(matched, unmatched) {
+      const ctx = document.getElementById('skillsChart').getContext('2d');
+      if (chart) chart.destroy();
+
+      chart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: ['Matched Skills', 'Unmatched Skills'],
+          datasets: [{
+            data: [matched, unmatched],
+            backgroundColor: ['#00e676', '#ff5252'],
+            borderWidth: 1
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: { color: '#fff' }
+            },
+            title: {
+              display: true,
+              text: 'Skill Match Chart',
+              color: '#fff',
+              font: { size: 18 }
+            }
+          }
+        }
+      });
+    }
+  </script>
+</body>
+</html>
